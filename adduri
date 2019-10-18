@@ -1,0 +1,89 @@
+#!/bin/bash
+
+help="Usage : adduri -d <site domain name> -n <existing container name> [OPTIONS]\n\n"
+help="${help}Starts reverse proxy docker with a first configuration\n\n"
+help="${help}Options:\n"
+help="${help}  -s       use https (0 or 1, default 0)\n"
+help="${help}  -p       site http port (default 8000)\n"
+help="${help}  -P       site https port (default 4430)\n"
+
+while getopts ":hs:p:P:d:n:" option; do
+    case "${option}" in
+        s)
+            ssl_on=${OPTARG}
+            ;;
+        p)
+            phpport=${OPTARG}
+            ;;
+        P)
+            phpport_ssl=${OPTARG}
+            ;;
+        d)
+            uri=${OPTARG}
+            ;;
+        n)
+            dockername=${OPTARG}
+            ;;
+        h)
+            printf "${help}"
+            exit 0
+            ;;
+        \?)
+            ;;
+    esac
+done
+
+if [ -z "${uri}" ]; then
+    echo "You must define a domain name to add in the reverse proxy !"
+    printf "${help}"
+    exit 2
+fi
+
+if [ -z "${dockername}" ]; then
+    echo "You must define a container name !"
+    printf "${help}"
+    exit 2
+fi
+
+if [ -z "${ssl_on}" ]; then
+    ssl_on=0
+fi
+
+if [ -z "${phpport}" ]; then
+    phpport=8001
+fi
+
+if [ -z "${phpport_ssl}" ]; then
+    phpport_ssl=4431
+fi
+
+data="\n\
+server {\n\
+    listen 80;\n\
+    server_name ${uri};\n\
+    location / {\n\
+        proxy_pass http://dockerhost:${phpport};\n\
+        proxy_set_header Host \$host;\n\
+        proxy_set_header X-Real-IP \$remote_addr;\n\
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header X-Forwarded-Proto \$scheme;\n\
+    }\n\
+}\n"
+
+if [ ${ssl_on} = 1 ]; then
+    data="${data}\n\
+\n\
+server {\n\
+    listen 443;\n\
+    server_name ${uri};\n\
+    location / {\n\
+        proxy_pass http://dockerhost:${phpport_ssl};\n\
+        proxy_set_header Host \$host;\n\
+        proxy_set_header X-Real-IP \$remote_addr;\n\
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header X-Forwarded-Proto \$scheme;\n\
+    }\n\
+}\n"
+fi
+docker exec -e data="${data}" ${dockername} /bin/bash -c 'printf "${data}" >> /etc/nginx/conf.d/proxy.conf'
+docker exec --privileged ${dockername} /bin/bash -c 'service nginx reload'
