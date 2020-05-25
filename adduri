@@ -4,10 +4,11 @@ help="Usage : adduri -d <site domain name> -n <existing container name> [OPTIONS
 help="${help}Starts reverse proxy docker with a first configuration\n\n"
 help="${help}Options:\n"
 help="${help}  -s       use https (0 or 1, default 0)\n"
+help="${help}  -l       location to configure (default /)\n"
 help="${help}  -p       site http port (default 8000)\n"
 help="${help}  -P       site https port (default 4430)\n"
 
-while getopts ":hs:p:P:d:n:" option; do
+while getopts ":hs:p:d:n:l:" option; do
     case "${option}" in
         s)
             ssl_on=${OPTARG}
@@ -15,15 +16,15 @@ while getopts ":hs:p:P:d:n:" option; do
         p)
             phpport=${OPTARG}
             ;;
-        P)
-            phpport_ssl=${OPTARG}
-            ;;
         d)
             uri=${OPTARG}
             ;;
         n)
             dockername=${OPTARG}
             ;;
+	l)
+	    location=${OPTARG}
+	    ;;
         h)
             printf "${help}"
             exit 0
@@ -53,15 +54,15 @@ if [ -z "${phpport}" ]; then
     phpport=8001
 fi
 
-if [ -z "${phpport_ssl}" ]; then
-    phpport_ssl=4431
+if [ -z "${location}" ]; then
+    location="/"
 fi
 
 data="\n\
 server {\n\
     listen 80;\n\
     server_name ${uri};\n\
-    location / {\n\
+    location ${location} {\n\
         proxy_pass http://dockerhost:${phpport};\n\
         proxy_set_header Host \$host;\n\
         proxy_set_header X-Real-IP \$remote_addr;\n\
@@ -76,13 +77,15 @@ if [ ${ssl_on} = 1 ]; then
 server {\n\
     listen 443;\n\
     server_name ${uri};\n\
-    location / {\n\
-        proxy_pass http://dockerhost:${phpport_ssl};\n\
+    location ${location} {\n\
+        proxy_pass http://dockerhost:${phpport};\n\
         proxy_set_header Host \$host;\n\
         proxy_set_header X-Real-IP \$remote_addr;\n\
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
         proxy_set_header X-Forwarded-Proto \$scheme;\n\
     }\n\
+    ssl_certificate /etc/letsencrypt/live/${uri}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${uri}/privkey.pem;
 }\n"
 fi
 docker exec -e data="${data}" ${dockername} /bin/bash -c 'printf "${data}" >> /etc/nginx/conf.d/proxy.conf'
