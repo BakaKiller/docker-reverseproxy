@@ -58,12 +58,16 @@ if [ -z "${location}" ]; then
     location="/"
 fi
 
+if [ "${location::1}" != "/" ]; then
+    location="/${location}"
+fi
+
 data="\n\
 server {\n\
     listen 80;\n\
     server_name ${uri};\n\
-    location ${location} {\n\
-        proxy_pass http://dockerhost:${phpport};\n\
+    location /${location:1} {\n\
+        proxy_pass http://dockerhost:${phpport}${location};\n\
         proxy_set_header Host \$host;\n\
         proxy_set_header X-Real-IP \$remote_addr;\n\
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
@@ -77,8 +81,8 @@ if [ ${ssl_on} = 1 ]; then
 server {\n\
     listen 443;\n\
     server_name ${uri};\n\
-    location ${location} {\n\
-        proxy_pass http://dockerhost:${phpport};\n\
+    location /${location:1} {\n\
+        proxy_pass http://dockerhost:${phpport}${location};\n\
         proxy_set_header Host \$host;\n\
         proxy_set_header X-Real-IP \$remote_addr;\n\
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
