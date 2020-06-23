@@ -10,6 +10,8 @@ ENV HOST=${HOST}
 
 RUN mkdir -p /etc/ssl
 
+RUN echo "${HOST}	dockerhost" >> /etc/hosts
+
 RUN if [ "${SSL_ON}" = "1" ]; then\
         openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
         -subj "/C=FR/L=Toulouse/O=BK/CN=${HOST}" \
@@ -20,5 +22,5 @@ RUN echo "# Add config here with addurl" > /etc/nginx/conf.d/proxy.conf
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
-CMD nginx -g "daemon off;"
+ENTRYPOINT ["bash", "/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

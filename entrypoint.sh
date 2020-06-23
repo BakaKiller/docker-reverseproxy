@@ -1,3 +1,8 @@
 #/bin/bash
 
-nginx -g "daemon off;";
+if ! grep -q "dockerhost" "/etc/hosts"; then
+	echo "${HOST}	dockerhost" >> /etc/hosts
+fi
+
+#nginx -g "daemon off;";
+exec "$@"
