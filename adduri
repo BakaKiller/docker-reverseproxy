@@ -7,7 +7,7 @@ help="${help}  -s       use https (0 or 1, default 0)\n"
 help="${help}  -l       location to configure (default /)\n"
 help="${help}  -p       site http port (default 8000)\n"
 help="${help}  -P       site https port (default 4430)\n"
-help="${help}  -v       add a local virtual domain name to host (0 or 1, default 0)\n"
+help="${help}  -v       add a local virtual domain name to host (0 or 1, default 0) (requires sudo permissions)\n"
 
 while getopts ":hs:p:d:n:l:v:" option; do
     case "${option}" in
@@ -100,8 +100,16 @@ server {\n\
     ssl_certificate_key /etc/letsencrypt/live/${uri}/privkey.pem;
 }\n"
 fi
+
+if [ ${virtual} = 1 ]; then
+    if [ "$(id -u)" = "0" ]; then
+        bash -c 'echo "127.0.0.1	${uri}" >> /etc/hosts'
+    else
+        echo("You need sudo permissions to use -v 1 option !")
+        exit 2
+    fi
+fi
+
 docker exec -e data="${data}" ${dockername} /bin/bash -c 'printf "${data}" >> /etc/nginx/conf.d/proxy.conf'
 docker exec --privileged ${dockername} /bin/bash -c 'service nginx reload'
-if [ ${virtual} = 1 ]; then
-    sudo bash -c 'echo "127.0.0.1	${uri}" >> /etc/hosts'
-fi
+
