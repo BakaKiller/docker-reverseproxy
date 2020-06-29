@@ -7,8 +7,9 @@ help="${help}  -s       use https (0 or 1, default 0)\n"
 help="${help}  -l       location to configure (default /)\n"
 help="${help}  -p       site http port (default 8000)\n"
 help="${help}  -P       site https port (default 4430)\n"
+help="${help}  -v       add a local virtual domain name to host (0 or 1, default 0)\n"
 
-while getopts ":hs:p:d:n:l:" option; do
+while getopts ":hs:p:d:n:l:v:" option; do
     case "${option}" in
         s)
             ssl_on=${OPTARG}
@@ -22,9 +23,12 @@ while getopts ":hs:p:d:n:l:" option; do
         n)
             dockername=${OPTARG}
             ;;
-	l)
-	    location=${OPTARG}
-	    ;;
+        l)
+            location=${OPTARG}
+            ;;
+        v)
+            virtual=${OPTARG}
+            ;;
         h)
             printf "${help}"
             exit 0
@@ -62,6 +66,10 @@ if [ "${location::1}" != "/" ]; then
     location="/${location}"
 fi
 
+if [ -z "${virtual}" ]; then
+    virtual="0"
+fi
+
 data="\n\
 server {\n\
     listen 80;\n\
@@ -94,3 +102,6 @@ server {\n\
 fi
 docker exec -e data="${data}" ${dockername} /bin/bash -c 'printf "${data}" >> /etc/nginx/conf.d/proxy.conf'
 docker exec --privileged ${dockername} /bin/bash -c 'service nginx reload'
+if [ ${virtual} = 1 ]; then
+    sudo bash -c 'echo "127.0.0.1	${uri}" >> /etc/hosts'
+fi
