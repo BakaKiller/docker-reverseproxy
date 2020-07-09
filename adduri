@@ -111,5 +111,5 @@ if [ ${virtual} = 1 ]; then
 fi
 
 docker exec -e data="${data}" ${dockername} /bin/bash -c 'printf "${data}" >> /etc/nginx/conf.d/proxy.conf'
-docker exec --privileged ${dockername} /bin/bash -c 'service nginx reload'
+docker exec -it --privileged ${dockername} /bin/bash -c 'service nginx reload'
 
